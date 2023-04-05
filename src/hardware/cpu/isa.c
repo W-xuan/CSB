@@ -132,8 +132,168 @@ static void parse_operand(const char *str, od_t *od, core_t *cr) {
     od->imm = string2uint_range(str, 1, -1);
   } else if (str[0] == '%') {
     // register
+    od->type = REG;
+    od->reg1 = reflect_register(str, cr);
+    return;
   } else {
     // memory access
+    char imm[64] = {'\0'};
+    int imm_len = 0;
+    char reg1[64] = {'\0'};
+    int reg1_len = 0;
+    char reg2[64] = {'\0'};
+    int reg2_len = 0;
+    char scal[64] = {'\0'};
+    int scal_len = 0;
+
+    int ca = 0; // ()
+    int cb = 0; // comma ,
+
+    for (int i = 0; i < str_len; ++ i)
+    {
+        char c = str[i];
+
+        if (c == '(' || c == ')')
+        {
+            ca ++;
+            continue;
+        }
+        else if (c == ',')
+        {
+            cb ++;
+            continue;
+        }
+        else 
+        {
+            // parse imm(reg1,reg2,scal)
+            if (ca == 0)
+            {
+                // xxx
+                imm[imm_len] = c;
+                imm_len ++;
+                continue;
+            }
+            else if (ca == 1)
+            {
+                if (cb == 0)
+                {
+                    // ???(xxxx
+                    // (xxxx
+                    reg1[reg1_len] = c;
+                    reg1_len ++;
+                    continue;
+                }
+                else if (cb == 1)
+                {
+                    // (???,xxxxx
+                    // ???(???,xxxxx
+                    // (,xxxxx
+                    // ???(,xxxxx
+                    reg2[reg2_len] = c;
+                    reg2_len ++;
+                    continue;
+                }
+                else if (cb == 2)
+                {
+                    // (???,???,xxxxx
+                    scal[scal_len] = c;
+                    scal_len ++;
+                }
+            }
+        }
+    }
+
+    // imm, reg1, reg2, scal
+
+    if (imm_len > 0)
+    {
+        od->imm = string2uint(imm);
+        if (ca == 0)
+        {
+            // imm
+            od->type = MEM_IMM;
+            return;
+        }
+    }
+
+    if (scal_len > 0)
+    {
+        od->scal = string2uint(scal);
+        if (od->scal != 1 && od->scal != 2 && od->scal != 4  && od->scal != 8)
+        {
+            printf("%s is not a legal scaler\n", scal);
+            exit(0);
+        }
+    }
+
+    if (reg1_len > 0)
+    {
+        od->reg1 = reflect_register(reg1, cr);
+    }
+
+    if (reg2_len > 0)
+    {
+        od->reg2 = reflect_register(reg2, cr);
+    }
+
+    // set operand type
+    if (cb == 0)
+    {
+        if (imm_len > 0)
+        {
+            od->type = MEM_IMM_REG1;
+            return;
+        }
+        else 
+        {
+            od->type = MEM_REG1;
+            return;
+        }
+    }
+    else if (cb == 1)
+    {
+        if (imm_len > 0)
+        {
+            od->type = MEM_IMM_REG1_REG2;
+            return;
+        }
+        else 
+        {
+            od->type = MEM_REG1_REG2;
+            return;
+        }
+    }
+    else if (cb == 2)
+    {
+      if (reg1_len > 0)
+      {
+          // reg1 exists
+          if (imm_len > 0)
+          {
+              od->type = MEM_IMM_REG1_REG2_SCAL;
+              return;
+          }
+          else 
+          {
+              od->type = MEM_REG1_REG2_SCAL;
+              return;
+          }
+      }
+      else
+      {
+          // no reg1
+          if (imm_len > 0)
+          {
+              od->type = MEM_IMM_REG2_SCAL;
+              return;
+          }
+          else 
+          {
+              od->type = MEM_REG2_SCAL;
+              return;
+          }
+      }            
+    }
   }
 }
 
