@@ -537,3 +537,70 @@ void print_stack(core_t *cr) {
     va -= 8;
   }
 }
+
+void TestParsingInstruction()
+{
+    ACTIVE_CORE = 0x0;    
+    core_t *ac = (core_t *)&cores[ACTIVE_CORE];
+
+    char assembly[15][MAX_INSTRUCTION_CHAR] = {
+        "push   %rbp",              // 0
+        "mov    %rsp,%rbp",         // 1
+        "mov    %rdi,-0x18(%rbp)",  // 2
+        "mov    %rsi,-0x20(%rbp)",  // 3
+        "mov    -0x18(%rbp),%rdx",  // 4
+        "mov    -0x20(%rbp),%rax",  // 5
+        "add    %rdx,%rax",         // 6
+        "mov    %rax,-0x8(%rbp)",   // 7
+        "mov    -0x8(%rbp),%rax",   // 8
+        "pop    %rbp",              // 9
+        "retq",                     // 10
+        "mov    %rdx,%rsi",         // 11
+        "mov    %rax,%rdi",         // 12
+        "callq  0",                 // 13
+        "mov    %rax,-0x8(%rbp)",   // 14
+    };
+    
+    inst_t inst;
+    for (int i = 0; i < 15; ++ i)
+    {
+        parse_instruction(assembly[i], &inst, ac);
+    }
+}
+
+void TestParsingOperand()
+{
+    ACTIVE_CORE = 0x0;    
+    core_t *ac = (core_t *)&cores[ACTIVE_CORE];
+
+    const char *strs[11] = {
+        "$0x1234",
+        "%rax",
+        "0xabcd",
+        "(%rsp)",
+        "0xabcd(%rsp)",
+        "(%rsp,%rbx)",
+        "0xabcd(%rsp,%rbx)",
+        "(,%rbx,8)",
+        "0xabcd(,%rbx,8)",
+        "(%rsp,%rbx,8)",
+        "0xabcd(%rsp,%rbx,8)",
+    };
+    
+    printf("rax %p\n", &(ac->reg.rax));
+    printf("rsp %p\n", &(ac->reg.rsp));
+    printf("rbx %p\n", &(ac->reg.rbx));
+    
+    for (int i = 0; i < 11; ++ i)
+    {
+        od_t od;
+        parse_operand(strs[i], &od, ac);
+
+        printf("\n%s\n", strs[i]);
+        printf("od enum type: %d\n", od.type);
+        printf("od imm: %lx\n", od.imm);
+        printf("od reg1: %lx\n", od.reg1);
+        printf("od reg2: %lx\n", od.reg2);
+        printf("od scal: %lx\n", od.scal);
+    }
+}
